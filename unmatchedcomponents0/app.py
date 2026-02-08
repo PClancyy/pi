@@ -77,7 +77,7 @@ if template_not_ok is None:
 picam2 = Picamera2()
 picam2.configure(
     picam2.create_video_configuration(
-        main={"size": (640, 480), "format": "RGB888"}
+        main={"size": (1920, 1080), "format": "RGB888"}
     )
 )
 picam2.start()
