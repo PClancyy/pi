@@ -44,24 +44,39 @@ close_button = Button(root, width=15, height=2, borderwidth=2, relief="ridge", t
 close_button.grid(row=4, column=0, columnspan=2, padx=0, pady=50, sticky="n")
 # Function to update the video canvas with webcam feed
 def update_video_canvas():
-   for frame in camera.capture_continuous(cap, format='bgr', use_video_port=True):
-        # Display original video in the first canvas
-        orig_photo = ImageTk.PhotoImage(image = Image.fromarray(frame))
-        video_canvas1.create_image(0, 30, image=orig_photo, anchor=NW)
-        video_canvas1.photo = orig_photo
-        # Text detection using easyocr
-        img, t = ocr_det(frame)
-        text_photo = ImageTk.PhotoImage(image = Image.fromarray(img))
-        video_canvas2.create_image(0, 30, image=text_photo, anchor=NW)
-        video_canvas2.photo = text_photo
-    # Update the detected text to the text entry widget
-   entry.delete(0.0, END)
-   entry.insert(END, t)
-   video_canvas1.after(10, update_video_canvas)
-   cap.truncate(0)
+    # 1) Capture ONE frame (RGB) and convert to BGR for OpenCV
+    frame_rgb = camera.capture_array()
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
+    # 2) Display original video in canvas 1 (RGB)
+    orig_photo = ImageTk.PhotoImage(Image.fromarray(frame_rgb))
+    video_canvas1.delete("all")
+    video_canvas1.create_image(0, 30, image=orig_photo, anchor=NW)
+    video_canvas1.photo = orig_photo  # keep reference
+
+    # 3) OCR detection (assume ocr_det expects BGR)
+    img_bgr, t = ocr_det(frame_bgr)
+
+    # If OCR returns BGR image, convert to RGB for display
+    if len(img_bgr.shape) == 3:
+        img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    else:
+        img_rgb = img_bgr  # grayscale is fine
+
+    text_photo = ImageTk.PhotoImage(Image.fromarray(img_rgb))
+    video_canvas2.delete("all")
+    video_canvas2.create_image(0, 30, image=text_photo, anchor=NW)
+    video_canvas2.photo = text_photo  # keep reference
+
+    # 4) Update detected text entry
+    entry.delete("1.0", END)
+    entry.insert(END, str(t))
+
+    # 5) Schedule next frame
+    video_canvas1.after(200, update_video_canvas)  # OCR is heavy; 200ms is sensible
+
 # Open the Pi cam
-camera = PiCamera()
-cap = PiRGBArray(camera)
+camera = Picamera2()
 # Call the update_video_canvas function to start displaying the video feed
 update_video_canvas()
 # Start the tkinter main loop
