@@ -13,10 +13,8 @@ root.title("Industrial Vision App")
 root.geometry("1600x1000")
 root.configure(bg="blue")
 
-
 def close_window():
     root.destroy()
-
 
 company_label = Label(root, text="ProcureInt Ltd",
                       borderwidth=5, relief="ridge",
@@ -62,49 +60,37 @@ config = camera.create_video_configuration(main={"size": (640, 480)})
 camera.configure(config)
 camera.start()
 
-
 # -----------------------------
 # Smooth Video Loop (30 FPS)
 # -----------------------------
 def update_video_canvas():
-    frame = camera.capture_array()
+    frame_rgb = camera.capture_array()
 
-    # Convert to Tk image
-    img = ImageTk.PhotoImage(Image.fromarray(frame))
-
-    # Draw on canvas
+    img = ImageTk.PhotoImage(Image.fromarray(frame_rgb))
     video_canvas1.create_image(0, 0, image=img, anchor=NW)
     video_canvas1.photo = img
 
-    # Schedule next frame
     root.after(30, update_video_canvas)
-
 
 # -----------------------------
 # OCR Loop (runs in background)
 # -----------------------------
 def ocr_loop():
-    frame = camera.capture_array()
-    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    frame_rgb = camera.capture_array()
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-    # Run OCR (heavy)
     img_bgr, t = ocr_det(frame_bgr)
 
-    # Convert for Tk
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     tk_img = ImageTk.PhotoImage(Image.fromarray(img_rgb))
 
-    # Update OCR canvas
     video_canvas2.create_image(0, 0, image=tk_img, anchor=NW)
     video_canvas2.photo = tk_img
 
-    # Update text box
     entry.delete("1.0", END)
     entry.insert(END, str(t))
 
-    # Run OCR again in 1 second
     threading.Timer(1.0, ocr_loop).start()
-
 
 # -----------------------------
 # Start Loops
