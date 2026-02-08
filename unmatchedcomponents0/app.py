@@ -98,10 +98,10 @@ def update_video_canvas():
     video_canvas1.delete("all")
     video_canvas1.create_image(0, 0, image=img1_ref, anchor=NW)
 
-    # Processed feed (unmatched part detection)
-    processed_bgr = unmatched_part_detection(frame_bgr, template_ok, template_not_ok)
+    status, processed_bgr, detections = unmatched_part_detection(
+        frame_bgr, template_ok, template_not_ok
+    )
 
-    # Ensure output is BGR image; convert for display
     processed_rgb = cv2.cvtColor(processed_bgr, cv2.COLOR_BGR2RGB)
 
     img2_ref = ImageTk.PhotoImage(Image.fromarray(processed_rgb))
