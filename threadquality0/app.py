@@ -13,7 +13,7 @@ def close_window():
     picam2.stop()
     root.destroy()
 
-Label(root, text="KMAKGA Corporation Ltd",
+Label(root, text="ProcureInt Ltd",
       borderwidth=5, relief="ridge",
       font=("Arial Black", 24), fg="red", bg="dark blue").pack(fill="x", padx=20, pady=10)
 

@@ -40,7 +40,7 @@ def component_id(frame, template_ok, template_not_ok):
 def close_window():
     root.destroy()
 # Create labels
-company_label = Label(root, text="KMAKGA Corporation Ltd",
+company_label = Label(root, text="ProcureInt Ltd",
                 borderwidth=5, relief="ridge",
                 font=("Arial Black", 24),fg="red", bg="dark blue")
 company_label.grid(row=0,column=0,columnspan=4,padx=30,pady=0,sticky="ew")
