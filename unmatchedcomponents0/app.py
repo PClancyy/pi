@@ -65,8 +65,8 @@ close_button = Button(
 close_button.grid(row=4, column=0, columnspan=2, padx=0, pady=50, sticky="n")
 
 # ---------------- LOAD TEMPLATES ----------------
-template_ok = cv2.imread("template_ok.jpg", cv2.IMREAD_GRAYSCALE)
-template_not_ok = cv2.imread("template_not_ok.jpg", cv2.IMREAD_GRAYSCALE)
+template_ok = cv2.imread("template_ok.jpeg", cv2.IMREAD_GRAYSCALE)
+template_not_ok = cv2.imread("template_not_ok.jpeg", cv2.IMREAD_GRAYSCALE)
 
 if template_ok is None:
     raise FileNotFoundError("template_ok.jpg not found (must be in same folder as unmatched_app.py)")

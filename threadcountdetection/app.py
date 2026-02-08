@@ -5,7 +5,6 @@ from PIL import Image, ImageTk
 import time
 from picamera2 import Picamera2
 from thread_count import thread_count
-import winsound
 # Create the main application window
 root = Tk()
 root.title("Industrial Vision App")
@@ -83,10 +82,8 @@ def update_video_canvas():
         label2.config(text="Fault detected", fg="red")
         # winsound is Windows-only. On Pi, use a bell as fallback:
         try:
-            import winsound
-            winsound.Beep(440, 500)
-            winsound.Beep(440, 500)
-            winsound.Beep(440, 500)
+            print("\a", end="")  # terminal bell (if enabled)
+
         except Exception:
             print("\a", end="")  # terminal bell (if enabled)
 
