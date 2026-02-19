@@ -1,36 +1,23 @@
-import time
-import board
-import busio
-from adafruit_pca9685 import PCA9685
+from gpiozero import Servo
+from time import sleep
 
-SERVO_CH = 0
+print("GPIO servo test starting on GPIO18 (Pin 12). Ctrl+C to stop.")
 
-i2c = busio.I2C(board.SCL, board.SDA)
-pca = PCA9685(i2c)
-pca.frequency = 50
-
-print("Starting servo test on channel", SERVO_CH)
-
-def set_pulse(us):
-    period_us = 20000
-    duty = int(us / period_us * 65535)
-    pca.channels[SERVO_CH].duty_cycle = duty
-    print(f"Pulse: {us}us  Duty: {duty}")
+servo = Servo(18)  # GPIO18
 
 try:
     while True:
-        print("Center")
-        set_pulse(1500)
-        time.sleep(1)
+        print("min")
+        servo.min()
+        sleep(1)
 
-        print("Left")
-        set_pulse(1000)
-        time.sleep(1)
+        print("mid")
+        servo.mid()
+        sleep(1)
 
-        print("Right")
-        set_pulse(2000)
-        time.sleep(1)
+        print("max")
+        servo.max()
+        sleep(1)
 
 except KeyboardInterrupt:
     print("Stopping")
-    pca.channels[SERVO_CH].duty_cycle = 0
