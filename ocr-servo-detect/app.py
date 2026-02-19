@@ -6,13 +6,114 @@ from ocr_det import ocr_det
 import threading
 import time
 
+# NO pigpio imports
 from gpiozero import AngularServo
-from gpiozero.pins.pigpio import PiGPIOFactory
 
+# =============================
+# SERVO CONTROLLER (NO pigpio)
+# =============================
+class ServoSweepController:
+    """
+    gpiozero-only (no pigpio) sweep controller.
+    - conservative pulse widths
+    - narrower angles to reduce buzz
+    - cooldown + non-blocking thread
+    - detach after sweep to reduce idle jitter
+    """
+    def __init__(
+        self,
+        gpio: int = 18,              # GPIO18 = physical pin 12
+        min_angle: int = -60,
+        max_angle: int = 60,
+        min_pulse_width: float = 0.0010,   # 1.0ms
+        max_pulse_width: float = 0.0020,   # 2.0ms
+        cooldown_s: float = 2.0,
+        keywords=None
+    ):
+        self.min_angle = int(min_angle)
+        self.max_angle = int(max_angle)
+        self.cooldown_s = float(cooldown_s)
+
+        self.servo = AngularServo(
+            gpio,
+            min_angle=self.min_angle,
+            max_angle=self.max_angle,
+            min_pulse_width=min_pulse_width,
+            max_pulse_width=max_pulse_width
+        )
+        self.servo.angle = 0
+
+        self._lock = threading.Lock()
+        self._last_trigger = 0.0
+
+        if keywords is None:
+            keywords = ["not ok", "notok", "fail", "reject", "error", "defect", "defct"]
+        self.keywords = [k.lower() for k in keywords]
+
+    def center(self):
+        try:
+            self.servo.angle = 0
+        except Exception:
+            pass
+
+    def detach(self):
+        try:
+            self.servo.detach()
+        except Exception:
+            pass
+
+    def sweep_async(self, step: int = 5, delay: float = 0.06):
+        if not self._lock.acquire(blocking=False):
+            return
+
+        def run():
+            try:
+                self.servo.angle = 0
+                time.sleep(0.2)
+
+                for a in range(self.min_angle, self.max_angle + 1, int(step)):
+                    self.servo.angle = a
+                    time.sleep(delay)
+
+                time.sleep(0.15)
+
+                for a in range(self.max_angle, self.min_angle - 1, -int(step)):
+                    self.servo.angle = a
+                    time.sleep(delay)
+
+                self.servo.angle = 0
+                time.sleep(0.2)
+
+                # stop pulses to reduce random idle jitter
+                self.detach()
+            finally:
+                self._lock.release()
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def trigger_from_text(self, text: str):
+        t = (text or "").lower()
+        if not any(k in t for k in self.keywords):
+            return
+
+        now = time.time()
+        if now - self._last_trigger < self.cooldown_s:
+            return
+
+        self._last_trigger = now
+        self.sweep_async()
+
+
+# =============================
+# TKINTER APP
+# =============================
 root = Tk()
 root.title("Industrial Vision App")
 root.geometry("1600x1000")
 root.configure(bg="blue")
+
+# Create servo controller (PIN 12 => GPIO18)
+servo_ctrl = ServoSweepController(gpio=18)
 
 def close_window():
     try:
@@ -20,7 +121,8 @@ def close_window():
     except Exception:
         pass
     try:
-        servo.angle = 0
+        servo_ctrl.center()
+        servo_ctrl.detach()
     except Exception:
         pass
     root.destroy()
@@ -57,55 +159,6 @@ close_button = Button(root, width=15, height=2, borderwidth=2,
 close_button.grid(row=4, column=0, columnspan=2, padx=0, pady=50, sticky="n")
 
 # -----------------------------
-# SERVO SETUP (GPIO + pigpio)
-# -----------------------------
-# Change SERVO_GPIO if your signal wire is on GPIO18 etc.
-SERVO_GPIO = 17           # GPIO17 = physical pin 11
-MIN_ANGLE = -90
-MAX_ANGLE = 90
-
-factory = PiGPIOFactory()  # uses pigpiod for stable timing
-servo = AngularServo(SERVO_GPIO, min_angle=MIN_ANGLE, max_angle=MAX_ANGLE, pin_factory=factory)
-servo.angle = 0
-
-_sweeping_lock = threading.Lock()
-_last_trigger = 0.0
-TRIGGER_COOLDOWN_S = 2.0
-
-def servo_sweep(step=10, delay=0.04):
-    """Non-blocking sweep; will not start if already sweeping."""
-    if not _sweeping_lock.acquire(blocking=False):
-        return
-
-    def run():
-        try:
-            for angle in range(MIN_ANGLE, MAX_ANGLE + 1, step):
-                servo.angle = angle
-                time.sleep(delay)
-            for angle in range(MAX_ANGLE, MIN_ANGLE - 1, -step):
-                servo.angle = angle
-                time.sleep(delay)
-            servo.angle = 0
-        finally:
-            _sweeping_lock.release()
-
-    threading.Thread(target=run, daemon=True).start()
-
-def trigger_servo_if_needed(ocr_text: str):
-    """Trigger sweep when OCR text contains certain keywords."""
-    global _last_trigger
-    t = (ocr_text or "").lower()
-
-    # Customize these keywords to your "NOT OK" logic
-    bad_keywords = ["not ok", "fail", "reject", "error", "defect"]
-
-    if any(k in t for k in bad_keywords):
-        now = time.time()
-        if now - _last_trigger >= TRIGGER_COOLDOWN_S:
-            _last_trigger = now
-            servo_sweep()
-
-# -----------------------------
 # CAMERA SETUP
 # -----------------------------
 camera = Picamera2()
@@ -118,11 +171,9 @@ camera.start()
 # -----------------------------
 def update_video():
     frame_rgb = camera.capture_array()
-
     img = ImageTk.PhotoImage(Image.fromarray(frame_rgb))
     video_canvas1.create_image(0, 0, image=img, anchor=NW)
     video_canvas1.photo = img
-
     root.after(30, update_video)
 
 # -----------------------------
@@ -134,23 +185,20 @@ def ocr_loop():
 
     img_bgr, t = ocr_det(frame_bgr)
 
-    # Trigger servo based on OCR result text
-    trigger_servo_if_needed(t)
+    # Trigger servo on "defect" / "not ok" etc.
+    servo_ctrl.trigger_from_text(t)
 
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     tk_img = ImageTk.PhotoImage(Image.fromarray(img_rgb))
-
     video_canvas2.create_image(0, 0, image=tk_img, anchor=NW)
     video_canvas2.photo = tk_img
 
     entry.delete("1.0", END)
     entry.insert(END, t)
 
-    # Use Tkinter scheduler instead of threading.Timer (safer)
     root.after(1000, ocr_loop)
 
 # START LOOPS
 update_video()
 ocr_loop()
-
 root.mainloop()
