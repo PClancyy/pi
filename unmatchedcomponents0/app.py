@@ -11,12 +11,14 @@ root.title("Industrial Vision App")
 root.geometry("1600x1000")
 root.configure(bg="blue")
 
+
 def close_window():
     try:
         picam2.stop()
     except Exception:
         pass
     root.destroy()
+
 
 company_label = Label(
     root,
@@ -77,7 +79,10 @@ if template_not_ok is None:
 picam2 = Picamera2()
 picam2.configure(
     picam2.create_video_configuration(
-        main={"size": (1640, 1232), "format": "RGB888"}
+        main={"size": (640, 480), "format": "BGR888"},
+        controls={"FrameRate": 30,
+                  "AeEnable": True,
+                  "AwbEnable": True}
     )
 )
 picam2.start()
@@ -86,12 +91,15 @@ picam2.start()
 img1_ref = None
 img2_ref = None
 
+
 def update_video_canvas():
     global img1_ref, img2_ref
 
     # Capture RGB frame from camera
-    frame_rgb = picam2.capture_array()
-    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    frame_bgr = picam2.capture_array()
+
+    # For display only
+    frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
     # Original feed display
     img1_ref = ImageTk.PhotoImage(Image.fromarray(frame_rgb))
@@ -109,7 +117,8 @@ def update_video_canvas():
     video_canvas2.create_image(0, 0, image=img2_ref, anchor=NW)
 
     # Schedule next frame (30ms ~ 33fps)
-    root.after(30, update_video_canvas)
+    root.after(1, update_video_canvas)
+
 
 # Start loop
 update_video_canvas()
