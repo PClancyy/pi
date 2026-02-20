@@ -80,9 +80,7 @@ picam2 = Picamera2()
 picam2.configure(
     picam2.create_video_configuration(
         main={"size": (640, 480), "format": "BGR888"},
-        controls={"FrameRate": 30,
-                  "AeEnable": True,
-                  "AwbEnable": True}
+        controls={"FrameRate": 30}
     )
 )
 picam2.start()

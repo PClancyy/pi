@@ -27,6 +27,7 @@ def unmatched_part_detection(frame_bgr, template_ok_gray, template_not_ok_gray,
 
     # Convert frame to grayscale
     gray_frame = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+    gray_frame = cv2.equalizeHist(gray_frame)
 
     detections = []
 
